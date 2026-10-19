@@ -190,7 +190,7 @@ public class SDL3ControlsBackend : IControlsBackend
     {
         lock (_sync)
         {
-            return _registeredControls;
+            return _registeredControls.ToList();
         }
     }
 
@@ -409,23 +409,27 @@ public class SDL3ControlsBackend : IControlsBackend
                 HandleEvent(ev);
             }
 
+            List<KeyboardHookEventArgs> keyEvents;
             lock (_sync)
             {
-                foreach (var keyEvent in _pendingKeyEvents)
-                {
-                    if (keyEvent.RawEvent.Type == SharpHook.Data.EventType.KeyPressed)
-                    {
-                        var controlId = SharpHookCodeToCharacter(keyEvent.Data.KeyCode);
-                        UpdateMatchingControls("Keyboard", controlId, true);
-                    }
-                    else if (keyEvent.RawEvent.Type == SharpHook.Data.EventType.KeyReleased)
-                    {
-                        var controlId = SharpHookCodeToCharacter(keyEvent.Data.KeyCode);
-                        UpdateMatchingControls("Keyboard", controlId, false);
-                    }
-                }
+                keyEvents = _pendingKeyEvents;
+                _pendingKeyEvents = new();
+            }
 
-                _pendingKeyEvents.Clear();
+            // Control callbacks can dispatch to the UI, which also reads controls
+            // under _sync. Never invoke those callbacks while holding the lock.
+            foreach (var keyEvent in keyEvents)
+            {
+                if (keyEvent.RawEvent.Type == SharpHook.Data.EventType.KeyPressed)
+                {
+                    var controlId = SharpHookCodeToCharacter(keyEvent.Data.KeyCode);
+                    UpdateMatchingControls("Keyboard", controlId, true);
+                }
+                else if (keyEvent.RawEvent.Type == SharpHook.Data.EventType.KeyReleased)
+                {
+                    var controlId = SharpHookCodeToCharacter(keyEvent.Data.KeyCode);
+                    UpdateMatchingControls("Keyboard", controlId, false);
+                }
             }
 
             Thread.Sleep(20);

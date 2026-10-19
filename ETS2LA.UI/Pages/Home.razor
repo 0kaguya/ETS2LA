@@ -57,7 +57,8 @@
         base.OnInitialized();
         if(!WindowSettings.Current.HasCompletedOnboarding)
         {
-            Navigation.NavigateTo("/onboarding", true);
+            Navigation.NavigateTo("/onboarding");
+            return;
         }
 
         if (!alreadyChecked)
